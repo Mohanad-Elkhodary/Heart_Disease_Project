@@ -1,0 +1,111 @@
+import streamlit as st
+import joblib
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+#load the pipeline(model)
+pipeline = joblib.load("final_pipeline.pkl")
+st.title("❤️ Heart Disease Prediction App")
+st.write("Enter patient details below to predict the risk of heart disease.")
+#User Inputs
+age = st.number_input("Age", 20, 100, 50)
+sex = st.selectbox("Sex", ["Male", "Female"])
+chol = st.number_input("Cholesterol (mg/dl)", 100, 600, 200)
+thalch = st.number_input("Max Heart Rate Achieved", 50, 220, 150)
+oldpeak = st.number_input("ST depression (Oldpeak)", 0.0, 6.0, 1.0)
+exang = st.selectbox("Exercise Induced Angina", ["No", "Yes"])
+cp_non_anginal = st.checkbox("Chest Pain:Non-Anginal")
+fbs = st.radio("Fasting Blood Sugar > 120 mg/dl", ["Yes", "No"])
+cp_typical_angina = st.checkbox("Chest Pain:Typical Angina")
+abnormality = st.checkbox("Resting EDG:ST-T Abnormality")
+slope_unsloping = st.checkbox("Sloping:Unsloping")
+cp_atypical_angina = st.checkbox("Chest Pain:Atypical Angina")
+#one-hot encode
+sex_male = 1 if sex == "Male" else 0
+exang_val = 1 if exang == "Yes" else 0
+cp_non_anginal_val = 1 if cp_non_anginal else 0
+cp_typical_angina_val = 1 if cp_typical_angina else 0
+cp_atypical_angina_val = 1 if cp_atypical_angina else 0
+abnormal_val = 1 if abnormality else 0
+slope_unsloping_val = 1 if slope_unsloping else 0
+fbs = 1 if fbs == "Yes" else 0
+#build input dataframe
+input_data = pd.DataFrame([{
+    "age": age,
+    "sex_Male": sex_male,
+    "chol": chol,
+    "thalch": thalch,
+    "oldpeak": oldpeak,
+    "exang": exang_val,
+    "cp_non-anginal": cp_non_anginal_val,
+    "cp_typical angina": cp_typical_angina_val,
+    "cp_atypical angina": cp_atypical_angina_val,
+    "restecg_st-t abnormality": abnormal_val,
+    "slope_upsloping": slope_unsloping_val,
+    "fbs": fbs
+}])
+if st.button("Predict"):
+    prediction = pipeline.predict(input_data)[0]
+
+    if prediction == 1:
+        st.error("🚨 Prediction Result 🚨")
+        st.markdown(
+            "<h2 style='text-align: center; color: red;'>Heart Disease Detected</h2>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.success("💚 Prediction Result 💚")
+        st.markdown(
+            "<h2 style='text-align: center; color: green;'>No Heart Disease</h2>",
+            unsafe_allow_html=True
+        )
+
+
+# Example visualization
+st.subheader("Heart Disease Data Visualization")
+
+# Suppose input_data is your DataFrame with one row
+df = pd.DataFrame({
+    "Feature": input_data.columns,
+    "Value": input_data.iloc[0].values
+})
+
+fig = px.bar(df, x="Feature", y="Value", title="User Input Features")
+st.plotly_chart(fig, use_container_width=True)
+st.subheader("📊 Explore Heart Disease Trends")
+
+# Load your cleaned dataset (the one you trained your model on)
+heart_df = pd.read_csv("cleaned_heart_data.csv")  # make sure this file has the 'num' column
+
+# 1. Distribution of target variable
+st.write("### Heart Disease Distribution")
+fig, ax = plt.subplots()
+sns.countplot(x="num", data=heart_df, ax=ax, palette="coolwarm")
+ax.set_title("Heart Disease Cases (0 = No, 1 = Yes)")
+st.pyplot(fig)
+
+# 2. Age vs. Heart Disease
+st.write("### Age vs Heart Disease")
+fig, ax = plt.subplots()
+sns.histplot(data=heart_df, x="age", hue="num", multiple="stack", bins=20, ax=ax)
+ax.set_title("Age Distribution by Heart Disease")
+st.pyplot(fig)
+
+# 3. Cholesterol vs Heart Disease
+st.write("### Cholesterol Levels by Heart Disease")
+fig, ax = plt.subplots()
+sns.boxplot(x="num", y="chol", data=heart_df, ax=ax, palette="Set2")
+ax.set_title("Cholesterol Levels (by Diagnosis)")
+st.pyplot(fig)
+
+# 4. Interactive Feature Correlation
+st.write("### Feature Correlation Heatmap")
+fig, ax = plt.subplots(figsize=(8,6))
+sns.heatmap(heart_df.corr(), annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
+st.pyplot(fig)
+
+feature = st.selectbox("Choose feature to compare with target", ["age", "chol", "thalch", "oldpeak"])
+fig, ax = plt.subplots()
+sns.boxplot(x="num", y=feature, data=heart_df, ax=ax)
+st.pyplot(fig)
